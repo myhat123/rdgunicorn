@@ -1,0 +1,439 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>配置参数 &mdash; 阅读gunicorn代码 v0.0.1 文档</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="top" title="阅读gunicorn代码 v0.0.1 文档" href="index.html" />
+    <link rel="next" title="真正的主宰者" href="arbiter.html" />
+    <link rel="prev" title="深入Application" href="app_base.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>导航</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="总目录"
+             accesskey="I">索引</a></li>
+        <li class="right" >
+          <a href="arbiter.html" title="真正的主宰者"
+             accesskey="N">下一页</a> |</li>
+        <li class="right" >
+          <a href="app_base.html" title="深入Application"
+             accesskey="P">上一页</a> |</li>
+        <li><a href="index.html">阅读gunicorn代码 v0.0.1 文档</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="id1">
+<h1>配置参数<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<p>初始化流程主要解决的是加载配置参数或文件，重点部分在load_config()方法中。</p>
+<p>配置参数的处理主要是在config.py文件中，有三个主要的类:</p>
+<ul class="simple">
+<li>Config</li>
+<li>Setting</li>
+<li>SettingMeta</li>
+</ul>
+<p>先挑有趣的代码开始阅读。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Setting</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">SettingMeta</span>
+
+<span class="k">class</span> <span class="nc">SettingMeta</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+      <span class="n">super_new</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">SettingMeta</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span><span class="o">.</span><span class="n">__new__</span>
+</pre></div>
+</div>
+<div class="section" id="id2">
+<h2>元类编程<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>SettingMeta和Setting继承的方式，是完全不同的，尽管他们都是用class来定义。</p>
+<p>__metaclass__ = SettingMeta</p>
+<p>metaclass是元类，它是一个类的类（型）。相对于类可以在运行时动态构造对象而言，元类也可以在运行时动态生成类。</p>
+<div class="section" id="type">
+<h3>解释type<a class="headerlink" href="#type" title="永久链接至标题">¶</a></h3>
+<p>示例:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="nb">type</span><span class="p">(</span><span class="s">&#39;abc&#39;</span><span class="p">)</span>
+<span class="go">&lt;type &#39;str&#39;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">type</span><span class="p">(</span><span class="s">&#39;abc&#39;</span><span class="p">)(</span><span class="s">&#39;def&#39;</span><span class="p">)</span>
+<span class="go">&#39;def&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">type</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="go">&lt;type &#39;type&#39;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">type</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="mi">1</span><span class="p">))(</span><span class="mi">1</span><span class="p">)</span>
+<span class="go">&lt;type &#39;int&#39;&gt;</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Calculator</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s">&#39;Calculator&#39;</span><span class="p">,</span> <span class="p">(),</span> <span class="p">{</span><span class="s">&#39;add&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="p">,</span> <span class="s">&#39;sub&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">sef</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">x</span><span class="o">-</span><span class="n">y</span> <span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">calc</span> <span class="o">=</span> <span class="n">Calculator</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">type</span><span class="p">(</span><span class="n">calc</span><span class="p">)</span>
+<span class="go">&lt;class &#39;__main__.Calculator&#39;&gt;</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">calc</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="go">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">calc</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="go">-1</span>
+</pre></div>
+</div>
+<p>type实际上是接收3个参数，第一个参数是类名，第二个是父类（由于允许多重继承，所以是个元组，空元组表示父类为object），第三个参数为类的成员字典。它会返回一个新风格的type对象，这个对象实际上就是一个动态生成的类。</p>
+</div>
+<div class="section" id="id3">
+<h3>跟踪子类<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
+<p>下面的内容是摘自pro django一书中的内容，是自己在2009-03-31翻译的，放在博客上，从中可以很清楚的知道元类的使用方式。</p>
+<p>考虑一个应用，在任何时候，访问一个特定类的所有子类列表。metaclass是一个非常好的处理手段，但是存在一个问题。记住，每一个带有__metaclass__属性的类都要处理，包括新的基类，他们是不需要被注册的（只有它的子类要被注册）。</p>
+<p>要处理好这个问题，就要作些额外的处理，但这样作也是很直接了当的，同时也是很有益处的。</p>
+<p>示例:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">SubclassTracker</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+<span class="gp">... </span>        <span class="k">try</span><span class="p">:</span>
+<span class="gp">... </span>            <span class="k">if</span> <span class="n">TrackedClass</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bases</span><span class="p">:</span>
+<span class="gp">... </span>                <span class="k">return</span>
+<span class="gp">... </span>        <span class="k">except</span> <span class="ne">NameError</span><span class="p">:</span>
+<span class="gp">... </span>            <span class="k">return</span>
+<span class="gp">... </span>        <span class="n">TrackedClass</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">TrackedClass</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">SubclassTracker</span>
+<span class="gp">... </span>    <span class="n">_registry</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">ClassOne</span><span class="p">(</span><span class="n">TrackedClass</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">pass</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">TrackedClass</span><span class="o">.</span><span class="n">_registry</span>
+<span class="go">[&lt;class &#39;__main__.ClassOne&#39;&gt;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">ClassTwo</span><span class="p">(</span><span class="n">TrackedClass</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">pass</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">TrackedClass</span><span class="o">.</span><span class="n">_registry</span>
+<span class="go">[&lt;class &#39;__main__.ClassOne&#39;&gt;, &lt;class &#39;__main__.ClassTwo&#39;&gt;]</span>
+</pre></div>
+</div>
+<p>这个metaclass执行了两个功能。首先，try块确保父类，TrackedClass，已经定义好了。如果没有的话，就抛出NameError异常， 这个过程就表明metaclass当前正处理TrackedClass。TrackedClass那还能处理更多的东西，但是这个例子为了简单，忽略掉了，只要通过注册就行了。</p>
+<p>...</p>
+<p>所有TrackedClass的子类能在任何时候从注册表中提取。 TrackedClass的任何子类都将出现在这个注册表中，不管子类在哪里定义的。执行这个类定义的过程就开始注册它，应用程序能导入任何有这些类和 metaclass的模块。</p>
+</div>
+</div>
+<div class="section" id="gunicorn">
+<h2>gunicorn配置怎么处理<a class="headerlink" href="#gunicorn" title="永久链接至标题">¶</a></h2>
+<p>Setting、SettingMeta与TrackedClass、SubclassTracker主体上是一致的</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">class</span> <span class="nc">SettingMeta</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+        <span class="n">super_new</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">SettingMeta</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span><span class="o">.</span><span class="n">__new__</span>
+        <span class="n">parents</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bases</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">SettingMeta</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parents</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">super_new</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+
+        <span class="n">attrs</span><span class="p">[</span><span class="s">&quot;order&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">KNOWN_SETTINGS</span><span class="p">)</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s">&quot;validator&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wrap_method</span><span class="p">(</span><span class="n">attrs</span><span class="p">[</span><span class="s">&quot;validator&quot;</span><span class="p">])</span>
+
+        <span class="n">new_class</span> <span class="o">=</span> <span class="n">super_new</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+        <span class="n">new_class</span><span class="o">.</span><span class="n">fmt_desc</span><span class="p">(</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;desc&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">))</span>
+        <span class="n">KNOWN_SETTINGS</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_class</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_class</span>
+
+    <span class="k">def</span> <span class="nf">fmt_desc</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">desc</span><span class="p">):</span>
+        <span class="n">desc</span> <span class="o">=</span> <span class="n">textwrap</span><span class="o">.</span><span class="n">dedent</span><span class="p">(</span><span class="n">desc</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&quot;desc&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&quot;short&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+</pre></div>
+</td></tr></table></div>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Setting</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">SettingMeta</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">section</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">cli</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">validator</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="nb">type</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">meta</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">action</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">default</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">short</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_option</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cli</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cli</span><span class="p">)</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&quot;dest&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s">&quot;metavar&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="ow">or</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&quot;action&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="ow">or</span> <span class="s">&quot;store&quot;</span><span class="p">,</span>
+            <span class="s">&quot;type&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="ow">or</span> <span class="s">&quot;string&quot;</span><span class="p">,</span>
+            <span class="s">&quot;default&quot;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&quot;help&quot;</span><span class="p">:</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s"> [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">short</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&quot;action&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&quot;store&quot;</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;type&quot;</span><span class="p">)</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">validator</span><span class="p">),</span> <span class="s">&quot;Invalid validator: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">validator</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Bind</span><span class="p">(</span><span class="n">Setting</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s">&quot;bind&quot;</span>
+    <span class="n">section</span> <span class="o">=</span> <span class="s">&quot;Server Socket&quot;</span>
+    <span class="n">cli</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;-b&quot;</span><span class="p">,</span> <span class="s">&quot;--bind&quot;</span><span class="p">]</span>
+    <span class="n">meta</span> <span class="o">=</span> <span class="s">&quot;ADDRESS&quot;</span>
+    <span class="n">validator</span> <span class="o">=</span> <span class="n">validate_string</span>
+    <span class="n">default</span> <span class="o">=</span> <span class="s">&quot;127.0.0.1:8000&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">        The socket to bind.</span>
+
+<span class="s">        A string of the form: &#39;HOST&#39;, &#39;HOST:PORT&#39;, &#39;unix:PATH&#39;. An IP is a valid</span>
+<span class="s">        HOST.</span>
+<span class="s">        &quot;&quot;&quot;</span>
+
+<span class="k">class</span> <span class="nc">Workers</span><span class="p">(</span><span class="n">Setting</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s">&quot;workers&quot;</span>
+    <span class="n">section</span> <span class="o">=</span> <span class="s">&quot;Worker Processes&quot;</span>
+    <span class="n">cli</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;-w&quot;</span><span class="p">,</span> <span class="s">&quot;--workers&quot;</span><span class="p">]</span>
+    <span class="n">meta</span> <span class="o">=</span> <span class="s">&quot;INT&quot;</span>
+    <span class="n">validator</span> <span class="o">=</span> <span class="n">validate_pos_int</span>
+    <span class="nb">type</span> <span class="o">=</span> <span class="s">&quot;int&quot;</span>
+    <span class="n">default</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">        The number of worker process for handling requests.</span>
+
+<span class="s">        A positive integer generally in the 2-4 x $(NUM_CORES) range. You&#39;ll</span>
+<span class="s">        want to vary this a bit to find the best for your particular</span>
+<span class="s">        application&#39;s work load.</span>
+<span class="s">        &quot;&quot;&quot;</span>
+</pre></div>
+</td></tr></table></div>
+<p>注意在SettingMeta中的KNOWN_SETTINGS.append(new_class)，和TrackedClass._registry，Bind、Workers在声明时，就已经执行SettingMeta的__new__()，留意__new__()与__init__()的区别</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">gunicorn</span> <span class="kn">import</span> <span class="n">config</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">Bind</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span><span class="o">.</span><span class="n">default</span>
+<span class="go">&#39;127.0.0.1:8000&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span><span class="o">.</span><span class="n">cli</span>
+<span class="go">[&#39;-b&#39;, &#39;--bind&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span><span class="o">.</span><span class="n">desc</span>
+<span class="go">&quot;The socket to bind.\n\nA string of the form: &#39;HOST&#39;, &#39;HOST:PORT&#39;, &#39;unix:PATH&#39;. An IP is a valid\nHOST.&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span><span class="o">.</span><span class="n">name</span>
+<span class="go">&#39;bind&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span><span class="o">.</span><span class="n">value</span>
+<span class="go">&#39;127.0.0.1:8000&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span><span class="o">.</span><span class="n">validator</span>
+<span class="go">&lt;bound method Bind._wrapped of &lt;gunicorn.config.Bind object at 0x8eb4eec&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span><span class="o">.</span><span class="n">order</span>
+<span class="go">1</span>
+</pre></div>
+</div>
+<p>SettingMeta中第8-9行，动态生成的有：validator()方法与order属性，在导入config时就已完成。</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">def</span> <span class="nf">wrap_method</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_wrapped</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_wrapped</span>
+</pre></div>
+</td></tr></table></div>
+<p>这里使用了python decorator的特性，wrap_method(&#8216;validate_string&#8217;)通过这样处理后，把validate_string替换成新的名称validator。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">gunicorn</span> <span class="kn">import</span> <span class="n">config</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">c</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">Config</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">c</span><span class="o">.</span><span class="n">address</span>
+<span class="go">(&#39;127.0.0.1&#39;, 8000)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">c</span><span class="o">.</span><span class="n">workers</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">c</span><span class="o">.</span><span class="n">worker_class</span>
+<span class="go">&lt;class &#39;gunicorn.workers.sync.SyncWorker&#39;&gt;</span>
+</pre></div>
+</div>
+<p>由Config中的parser方法，来解析命令行的参数</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">內容目录</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">配置参数</a><ul>
+<li><a class="reference internal" href="#id2">元类编程</a><ul>
+<li><a class="reference internal" href="#type">解释type</a></li>
+<li><a class="reference internal" href="#id3">跟踪子类</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gunicorn">gunicorn配置怎么处理</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>上一个主题</h4>
+  <p class="topless"><a href="app_base.html"
+                        title="上一章">深入Application</a></p>
+  <h4>下一个主题</h4>
+  <p class="topless"><a href="arbiter.html"
+                        title="下一章">真正的主宰者</a></p>
+  <h3>本页</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/config.txt"
+           rel="nofollow">显示源代码</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>快速搜索</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="搜索" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    输入相关的模块，术语，类或者函数名称进行搜索
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>导航</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="总目录"
+             >索引</a></li>
+        <li class="right" >
+          <a href="arbiter.html" title="真正的主宰者"
+             >下一页</a> |</li>
+        <li class="right" >
+          <a href="app_base.html" title="深入Application"
+             >上一页</a> |</li>
+        <li><a href="index.html">阅读gunicorn代码 v0.0.1 文档</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; 版权所有 2012, 江西 hzg.
+      使用 <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

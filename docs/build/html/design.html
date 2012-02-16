@@ -1,0 +1,415 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>设计 &mdash; 阅读gunicorn代码 v0.0.1 文档</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="top" title="阅读gunicorn代码 v0.0.1 文档" href="index.html" />
+    <link rel="next" title="快速入门" href="getstart.html" />
+    <link rel="prev" title="介绍" href="intro.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>导航</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="总目录"
+             accesskey="I">索引</a></li>
+        <li class="right" >
+          <a href="getstart.html" title="快速入门"
+             accesskey="N">下一页</a> |</li>
+        <li class="right" >
+          <a href="intro.html" title="介绍"
+             accesskey="P">上一页</a> |</li>
+        <li><a href="index.html">阅读gunicorn代码 v0.0.1 文档</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="id1">
+<h1>设计<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<p>这部分是采用gunicorn的英文文档，同时加入自己的理解，源代码，以及参考资料等等</p>
+<div class="section" id="id2">
+<h2>服务器模型<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>gunicorn是基于&#8221;pre-fork worker&#8221;模型，这就意味着有一个中心主控master进程，由它来管理一组worker进程。这个主控进程并不知晓任何客户端，所有的请求和响应都完全是由多个worker进程来处理</p>
+<div class="section" id="pre-fork">
+<h3>解释pre-fork<a class="headerlink" href="#pre-fork" title="永久链接至标题">¶</a></h3>
+<p>pre-fork服务器和fork服务器相似，通过一个单独的进程来处理每条请求。</p>
+<p>不同的是，pre-fork服务器会通过预先开启大量的进程，等待并处理接到的请求。</p>
+<p>由于采用了这种方式来开启进程，服务器并不需要等待新的进程启动而消耗时间，因而能够以更快的速度应付多用户请求。</p>
+<p>另外，pre-fork服务器在遇到极大的高峰负载时仍能保持良好的性能状态。这是因为不管什么时候，只要预先设定的所有进程都已被用来处理请求时，服务器仍可追加额外的进程。</p>
+<p>缺点是，当遇到高峰负载时，由于要启动新的服务器进程，不可避免地会带来响应的延迟。</p>
+</div>
+</div>
+<div class="section" id="master">
+<h2>主控master进程<a class="headerlink" href="#master" title="永久链接至标题">¶</a></h2>
+<p>主控master进程，就是一个简单的循环，用来不断侦听不同进程信号并作出不同的动作，仅此而已。它通过一些信号，诸如TTIN, TTOU, 和CHLD等等， 管理着那些正在运行的worker进程。</p>
+<p>TTIN 和 TTOU信号是告诉主控master进程增加或减少正在运行的worker数量。</p>
+<p>CHLD信号是在一个子进程已经中止之后，由主控master进程重启这个失效的worker进程。</p>
+<p>我们看几段代码，在gunicorn/arbiter.py中</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Arbiter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Arbiter maintain the workers processes alive. It launches or</span>
+<span class="sd">    kills them if needed. It also manages application reloading</span>
+<span class="sd">    via SIGHUP/USR2.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># A flag indicating if a worker failed to</span>
+    <span class="c"># to boot. If a worker process exist with</span>
+    <span class="c"># this error code, the arbiter will terminate.</span>
+    <span class="n">WORKER_BOOT_ERROR</span> <span class="o">=</span> <span class="mi">3</span>
+
+    <span class="n">START_CTX</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">LISTENER</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">WORKERS</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">PIPE</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c"># I love dynamic languages</span>
+    <span class="n">SIG_QUEUE</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">SIGNALS</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="s">&quot;SIG</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">x</span><span class="p">),</span>
+        <span class="s">&quot;HUP QUIT INT TERM TTIN TTOU USR1 USR2 WINCH&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="n">SIG_NAMES</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+        <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="n">name</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;SIG&quot;</span> <span class="ow">and</span> <span class="n">name</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&quot;_&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&quot;SERVER_SOFTWARE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SERVER_SOFTWARE</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pidfile</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">worker_age</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reexec_pid</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">master_name</span> <span class="o">=</span> <span class="s">&quot;Master&quot;</span>
+</pre></div>
+</td></tr></table></div>
+<p>在上面代码中的第23行中，列举了相应的多个信号：</p>
+<ul class="simple">
+<li>HUP，重启所有的配置和所有的worker进程</li>
+<li>QUIT，正常关闭，它会等待所有worker进程处理完各自的东西后关闭</li>
+<li>INT/TERM，立即关闭，强行中止所有的处理</li>
+<li>TTIN，增加一个worker进程</li>
+<li>TTOU，减少一个worker进程</li>
+<li>USR1，重新打开由master和worker所有的日志处理</li>
+<li>USR2，重新运行master和worker</li>
+<li>WINCH，正常关闭所有worker进程，保持主控master进程的运行</li>
+</ul>
+<p>下面是针对不同信号的代码:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">def</span> <span class="nf">handle_chld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sig</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+    <span class="s">&quot;SIGCHLD handling&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wakeup</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">handle_hup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;\</span>
+<span class="sd">    HUP handling.</span>
+<span class="sd">    - Reload configuration</span>
+<span class="sd">    - Start the new worker processes with a new configuration</span>
+<span class="sd">    - Gracefully shutdown the old worker processes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Hang up: </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">master_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reload</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">handle_quit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="s">&quot;SIGQUIT handling&quot;</span>
+    <span class="k">raise</span> <span class="ne">StopIteration</span>
+
+<span class="k">def</span> <span class="nf">handle_int</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="s">&quot;SIGINT handling&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">StopIteration</span>
+
+<span class="k">def</span> <span class="nf">handle_term</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="s">&quot;SIGTERM handling&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">StopIteration</span>
+
+<span class="k">def</span> <span class="nf">handle_ttin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;\</span>
+<span class="sd">    SIGTTIN handling.</span>
+<span class="sd">    Increases the number of workers by one.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manage_workers</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">handle_ttou</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;\</span>
+<span class="sd">    SIGTTOU handling.</span>
+<span class="sd">    Decreases the number of workers by one.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">-=</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manage_workers</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">handle_usr1</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;\</span>
+<span class="sd">    SIGUSR1 handling.</span>
+<span class="sd">    Kill all workers by sending them a SIGUSR1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kill_workers</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGUSR1</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">reopen_files</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">handle_usr2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;\</span>
+<span class="sd">    SIGUSR2 handling.</span>
+<span class="sd">    Creates a new master/worker set as a slave of the current</span>
+<span class="sd">    master without affecting old workers. Use this to do live</span>
+<span class="sd">    deployment with the ability to backout a change.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reexec</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">handle_winch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="s">&quot;SIGWINCH handling&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getppid</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getpgrp</span><span class="p">()</span> <span class="o">!=</span> <span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;graceful stop of workers&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kill_workers</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGQUIT</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;SIGWINCH ignored. Not daemonized&quot;</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="workers">
+<h2>同步workers<a class="headerlink" href="#workers" title="永久链接至标题">¶</a></h2>
+<p>大多数情况下，采用的worker类型是同步方式，也就是说一次仅处理一个请求。这种模型方式是最简单的，因为期间发生的任何错误最多只影响到一个请求。</p>
+<p>尽管下面我们描述的内容，也是一次处理一个请求，但实际上在编写应用的时候，是加一些条件的。（？？）</p>
+</div>
+<div class="section" id="id3">
+<h2>异步workers<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>可用的异步workers，主要是基于greenlets软件包（通过eventlet和gevent）。greenlet是用python来实现的协程方式（cooperative multi-threading）。通常情况下，我们编写的应用代码不需要作出什么改变，就能使用上这些异步workers的特性的。</p>
+</div>
+<div class="section" id="tornado-workers">
+<h2>tornado workers<a class="headerlink" href="#tornado-workers" title="永久链接至标题">¶</a></h2>
+<p>还有一个可以用上的worker，是tornado worker，它是用在那些采用tornado框架的程序上。尽管tornado worker也可以用于wsgi程序上，但是这不是一个推荐的做法。</p>
+</div>
+<div class="section" id="worker">
+<h2>选择worker进程类型<a class="headerlink" href="#worker" title="永久链接至标题">¶</a></h2>
+<p>默认的同步worker在cpu和带宽方面会消耗资源的。这就意味着你的应用不可能无节制地做任何事。例如，互联网上的一个请求，必须要遵守这个准则。</p>
+<p>这个资源绑定的条件，也就是为什么我们会在gunicorn默认配置前做一个缓冲的代理。如果你把同步worker，直接暴露在internet上，一个dos(Denial of Service)攻击就会给服务器不停地制造大流量无用数据，而是服务器无法正常提供服务。Slowloris，就是这样一个有趣的例子，专门用来做这事的。</p>
+<p>有些情况可以考虑采用异步worker：</p>
+<ul class="simple">
+<li>需要长时间阻塞调用的应用，比如外部的web service</li>
+<li>直接给internet提供服务</li>
+<li>流请求和响应（是类似flv流么？）</li>
+<li>长轮询</li>
+<li>Web sockets（WebSocket是HTML5规格中的一个非常重要的新特性，它的存在可以允许用户在浏览器中实现双向通信，实现数据的及时推送）</li>
+<li>Comet（基于 HTTP 长连接的“服务器推”技术，是一种新的 Web 应用架构。基于这种架构开发的应用中，服务器端会主动以异步的方式向客户端程序推送数据，而不需要客户端显式的发出请求。Comet 架构非常适合事件驱动的 Web 应用，以及对交互性和实时性要求很强的应用）</li>
+</ul>
+</div>
+<div class="section" id="id4">
+<h2>启动多少个workers?<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>不要试图做这样的事，你预期多少个客户端就启用多少个worker。gunicorn只需要启用4&#8211;12个workers，就足以每秒钟处理几百甚至上千个请求了。</p>
+<p>在处理请求时，gunicorn依靠操作系统来提供负载均衡。通常我们推荐的worker数量是：(2 x $num_cores) + 1，这个公式很简单，它是基于给定的核心处理器数量，在其他worker处理请求时，每个worker将从socket那进行读写操作。</p>
+<p>很显然，你的硬件环境和应用将影响到worker数量。我们推荐先采用上述公式来安排，在应用启动之后，然后再通过TTIN和TTOU这两个信号来调整worker数量。</p>
+<p>记住：太多的worker，肯定会在某一个时刻，让你的整个系统急剧降低性能。（只能意译了）</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">內容目录</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">设计</a><ul>
+<li><a class="reference internal" href="#id2">服务器模型</a><ul>
+<li><a class="reference internal" href="#pre-fork">解释pre-fork</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#master">主控master进程</a></li>
+<li><a class="reference internal" href="#workers">同步workers</a></li>
+<li><a class="reference internal" href="#id3">异步workers</a></li>
+<li><a class="reference internal" href="#tornado-workers">tornado workers</a></li>
+<li><a class="reference internal" href="#worker">选择worker进程类型</a></li>
+<li><a class="reference internal" href="#id4">启动多少个workers?</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>上一个主题</h4>
+  <p class="topless"><a href="intro.html"
+                        title="上一章">介绍</a></p>
+  <h4>下一个主题</h4>
+  <p class="topless"><a href="getstart.html"
+                        title="下一章">快速入门</a></p>
+  <h3>本页</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/design.txt"
+           rel="nofollow">显示源代码</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>快速搜索</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="搜索" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    输入相关的模块，术语，类或者函数名称进行搜索
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>导航</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="总目录"
+             >索引</a></li>
+        <li class="right" >
+          <a href="getstart.html" title="快速入门"
+             >下一页</a> |</li>
+        <li class="right" >
+          <a href="intro.html" title="介绍"
+             >上一页</a> |</li>
+        <li><a href="index.html">阅读gunicorn代码 v0.0.1 文档</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; 版权所有 2012, 江西 hzg.
+      使用 <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

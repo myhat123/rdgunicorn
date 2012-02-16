@@ -1,0 +1,1 @@
+因为在玩heroku app时，heroku给出的教程中，采用了gunicorn来部署应用；在南昌echo提出用freebsd的kqueue改造flup时，我建议可以对比一下gunicorn。但自己仅仅是在heroku上小用了一把而已，并没有深入研究，为了此次南昌 pythoner 2012年第一次聚会，特意浏览了一下gunicorn的代码，感觉上gunicorn代码写得比较小巧精炼，整理出来，算是抛砖引玉。

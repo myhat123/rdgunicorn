@@ -1,0 +1,237 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>快速入门 &mdash; 阅读gunicorn代码 v0.0.1 文档</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="top" title="阅读gunicorn代码 v0.0.1 文档" href="index.html" />
+    <link rel="next" title="从哪开始阅读源代码" href="readstart.html" />
+    <link rel="prev" title="设计" href="design.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>导航</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="总目录"
+             accesskey="I">索引</a></li>
+        <li class="right" >
+          <a href="readstart.html" title="从哪开始阅读源代码"
+             accesskey="N">下一页</a> |</li>
+        <li class="right" >
+          <a href="design.html" title="设计"
+             accesskey="P">上一页</a> |</li>
+        <li><a href="index.html">阅读gunicorn代码 v0.0.1 文档</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="id1">
+<h1>快速入门<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<div class="section" id="gunicorn">
+<h2>安装gunicorn<a class="headerlink" href="#gunicorn" title="永久链接至标题">¶</a></h2>
+<p>下载源代码:</p>
+<div class="highlight-python"><pre>git clone https://github.com/benoitc/gunicorn.git</pre>
+</div>
+<p>使用开发模式来安装，便于今后调试:</p>
+<div class="highlight-python"><pre>python setup.py develop</pre>
+</div>
+<p>这样安装后，会在pythone的site-packages中仅仅增加一个链接，在自己目录下的源代码可以随时进行调整测试</p>
+</div>
+<div class="section" id="wsgi">
+<h2>简单的wsgi应用<a class="headerlink" href="#wsgi" title="永久链接至标题">¶</a></h2>
+<p>随便编写一个myapp.py</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9</pre></div></td><td class="code"><div class="highlight"><pre><span class="c"># -*- coding: utf8 -*-</span>
+
+<span class="k">def</span> <span class="nf">app</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="s">&quot;Hello, World!</span><span class="se">\n</span><span class="s">&quot;</span>
+    <span class="n">start_response</span><span class="p">(</span><span class="s">&quot;200 OK&quot;</span><span class="p">,</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s">&quot;Content-Type&quot;</span><span class="p">,</span> <span class="s">&quot;text/plain&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s">&quot;Content-Length&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+    <span class="p">])</span>
+    <span class="k">return</span> <span class="nb">iter</span><span class="p">([</span><span class="n">data</span><span class="p">])</span>
+</pre></div>
+</td></tr></table></div>
+<p>运行之:</p>
+<div class="highlight-python"><pre>$ gunicorn --workers=2 myapp:app</pre>
+</div>
+<p>运行的结果:</p>
+<div class="highlight-python"><pre>2012-02-13 10:48:02 [2481] [INFO] Starting gunicorn 0.13.4
+2012-02-13 10:48:02 [2481] [INFO] Listening at: http://127.0.0.1:8000 (2481)
+2012-02-13 10:48:02 [2481] [INFO] Using worker: sync
+2012-02-13 10:48:02 [2484] [INFO] Booting worker with pid: 2484
+2012-02-13 10:48:02 [2485] [INFO] Booting worker with pid: 2485</pre>
+</div>
+</div>
+<div class="section" id="django">
+<h2>简单的django应用<a class="headerlink" href="#django" title="永久链接至标题">¶</a></h2>
+<p>快速体验:</p>
+<div class="highlight-python"><pre>$ django-admin.py startproject hello
+$ cd hello
+$ gunicorn_django --workers=2</pre>
+</div>
+<p>运行结果:</p>
+<div class="highlight-python"><pre>2012-02-13 11:11:15 [2565] [INFO] Starting gunicorn 0.13.4
+2012-02-13 11:11:15 [2565] [INFO] Listening at: http://127.0.0.1:8000 (2565)
+2012-02-13 11:11:15 [2565] [INFO] Using worker: sync
+2012-02-13 11:11:15 [2568] [INFO] Booting worker with pid: 2568
+2012-02-13 11:11:15 [2569] [INFO] Booting worker with pid: 2569</pre>
+</div>
+</div>
+<div class="section" id="id2">
+<h2>命令行参数<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>执行gunicorn:</p>
+<div class="highlight-python"><pre>(mypy)hzg@gofast:~/gunicorn$ gunicorn -h
+Usage: gunicorn [OPTIONS] APP_MODULE
+
+Options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit
+  -c FILE, --config=FILE
+                        The path to a Gunicorn config file. [None]
+  --debug               Turn on debugging in the server. [False]
+  --spew                Install a trace function that spews every line
+                        executed by the server. [False]
+  --access-logfile=FILE
+                        The Access log file to write to. [None]
+  --access-logformat=STRING
+                        The Access log format . [%(h)s %(l)s %(u)s %(t)s
+                        "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"]
+  --error-logfile=FILE, --log-file=FILE
+                        The Error log file to write to. [-]
+  --log-level=LEVEL     The granularity of Error log outputs. [info]
+  --logger-class=STRING
+                        The logger you want to use to log events in gunicorn.
+                        [simple]
+  -n STRING, --name=STRING
+                        A base to use with setproctitle for process naming.
+                        [None]
+  --preload             Load application code before the worker processes are
+                        forked. [False]
+  -D, --daemon          Daemonize the Gunicorn process. [False]
+  -p FILE, --pid=FILE   A filename to use for the PID file. [None]
+  -u USER, --user=USER  Switch worker processes to run as this user. [1000]
+  -g GROUP, --group=GROUP
+                        Switch worker process to run as this group. [1000]
+  -m INT, --umask=INT   A bit mask for the file mode on files written by
+                        Gunicorn. [0]
+  -b ADDRESS, --bind=ADDRESS
+                        The socket to bind. [127.0.0.1:8000]
+  --backlog=INT         The maximum number of pending connections.     [2048]
+  -w INT, --workers=INT
+                        The number of worker process for handling requests.
+                        [1]
+  -k STRING, --worker-class=STRING
+                        The type of workers to use. [sync]
+  --worker-connections=INT
+                        The maximum number of simultaneous clients. [1000]
+  --max-requests=INT    The maximum number of requests a worker will process
+                        before restarting. [0]
+  -t INT, --timeout=INT
+                        Workers silent for more than this many seconds are
+                        killed and restarted. [30]
+  --keep-alive=INT      The number of seconds to wait for requests on a Keep-
+                        Alive connection. [2]</pre>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">內容目录</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">快速入门</a><ul>
+<li><a class="reference internal" href="#gunicorn">安装gunicorn</a></li>
+<li><a class="reference internal" href="#wsgi">简单的wsgi应用</a></li>
+<li><a class="reference internal" href="#django">简单的django应用</a></li>
+<li><a class="reference internal" href="#id2">命令行参数</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>上一个主题</h4>
+  <p class="topless"><a href="design.html"
+                        title="上一章">设计</a></p>
+  <h4>下一个主题</h4>
+  <p class="topless"><a href="readstart.html"
+                        title="下一章">从哪开始阅读源代码</a></p>
+  <h3>本页</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/getstart.txt"
+           rel="nofollow">显示源代码</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>快速搜索</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="搜索" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    输入相关的模块，术语，类或者函数名称进行搜索
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>导航</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="总目录"
+             >索引</a></li>
+        <li class="right" >
+          <a href="readstart.html" title="从哪开始阅读源代码"
+             >下一页</a> |</li>
+        <li class="right" >
+          <a href="design.html" title="设计"
+             >上一页</a> |</li>
+        <li><a href="index.html">阅读gunicorn代码 v0.0.1 文档</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; 版权所有 2012, 江西 hzg.
+      使用 <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

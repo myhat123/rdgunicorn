@@ -1,0 +1,411 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>从哪开始阅读源代码 &mdash; 阅读gunicorn代码 v0.0.1 文档</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="top" title="阅读gunicorn代码 v0.0.1 文档" href="index.html" />
+    <link rel="next" title="深入Application" href="app_base.html" />
+    <link rel="prev" title="快速入门" href="getstart.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>导航</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="总目录"
+             accesskey="I">索引</a></li>
+        <li class="right" >
+          <a href="app_base.html" title="深入Application"
+             accesskey="N">下一页</a> |</li>
+        <li class="right" >
+          <a href="getstart.html" title="快速入门"
+             accesskey="P">上一页</a> |</li>
+        <li><a href="index.html">阅读gunicorn代码 v0.0.1 文档</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="id1">
+<h1>从哪开始阅读源代码<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<div class="section" id="id2">
+<h2>代码树<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>执行命令:</p>
+<div class="highlight-python"><pre>tree -I '*.pyc'</pre>
+</div>
+<p>先看看gunicorn的目录树:</p>
+<div class="highlight-python"><pre>gunicorn
+├── app
+│   ├── base.py
+│   ├── djangoapp.py
+│   ├── __init__.py
+│   ├── pasterapp.py
+│   └── wsgiapp.py
+├── arbiter.py
+├── config.py
+├── debug.py
+├── errors.py
+├── glogging.py
+├── http
+│   ├── body.py
+│   ├── errors.py
+│   ├── __init__.py
+│   ├── message.py
+│   ├── parser.py
+│   ├── _sendfile.py
+│   ├── unreader.py
+│   └── wsgi.py
+├── __init__.py
+├── logging_config.py
+├── management
+│   ├── commands
+│   │   ├── __init__.py
+│   │   └── run_gunicorn.py
+│   └── __init__.py
+├── pidfile.py
+├── sock.py
+├── util.py
+└── workers
+    ├── async.py
+    ├── base.py
+    ├── geventlet.py
+    ├── ggevent.py
+    ├── ggevent_wsgi.py
+    ├── gtornado.py
+    ├── __init__.py
+    ├── sync.py
+    └── workertmp.py</pre>
+</div>
+</div>
+<div class="section" id="id3">
+<h2>从脚本命令开始<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>就从脚本命令gunicorn和gunicorn_django开始</p>
+<p>gunicorn</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/home/hzg/mypy/bin/python</span>
+<span class="c"># EASY-INSTALL-ENTRY-SCRIPT: &#39;gunicorn==0.13.4&#39;,&#39;console_scripts&#39;,&#39;gunicorn&#39;</span>
+<span class="n">__requires__</span> <span class="o">=</span> <span class="s">&#39;gunicorn==0.13.4&#39;</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">load_entry_point</span>
+
+<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span>
+   <span class="n">load_entry_point</span><span class="p">(</span><span class="s">&#39;gunicorn==0.13.4&#39;</span><span class="p">,</span> <span class="s">&#39;console_scripts&#39;</span><span class="p">,</span> <span class="s">&#39;gunicorn&#39;</span><span class="p">)()</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>gunicorn_django</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/home/hzg/mypy/bin/python</span>
+<span class="c"># EASY-INSTALL-ENTRY-SCRIPT: &#39;gunicorn==0.13.4&#39;,&#39;console_scripts&#39;,&#39;gunicorn_django&#39;</span>
+<span class="n">__requires__</span> <span class="o">=</span> <span class="s">&#39;gunicorn==0.13.4&#39;</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">load_entry_point</span>
+
+<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span>
+   <span class="n">load_entry_point</span><span class="p">(</span><span class="s">&#39;gunicorn==0.13.4&#39;</span><span class="p">,</span> <span class="s">&#39;console_scripts&#39;</span><span class="p">,</span> <span class="s">&#39;gunicorn_django&#39;</span><span class="p">)()</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>这是eggs文件的规范，实际上调用入口，可以从entry_points.txt看出来：</p>
+<p>entry_points.txt:</p>
+<div class="highlight-python"><pre>[console_scripts]
+gunicorn=gunicorn.app.wsgiapp:run
+gunicorn_django=gunicorn.app.djangoapp:run
+gunicorn_paster=gunicorn.app.pasterapp:run</pre>
+</div>
+<p>注意在[console_scripts]部分，有</p>
+<ul class="simple">
+<li>gunicorn &lt;&#8211;&gt; gunicorn.app.wsgiapp:run</li>
+<li>gunicorn_django &lt;&#8211;&gt; gunicorn.app.djangoapp:run</li>
+</ul>
+<p>那么，我们就从gunicorn/app目录下开始，从wsgiapp.py, djangoapp.py开始。</p>
+<div class="section" id="wsgiapp-py">
+<h3>wsgiapp.py<a class="headerlink" href="#wsgiapp-py" title="永久链接至标题">¶</a></h3>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27</pre></div></td><td class="code"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">gunicorn</span> <span class="kn">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">gunicorn.app.base</span> <span class="kn">import</span> <span class="n">Application</span>
+
+<span class="k">class</span> <span class="nc">WSGIApplication</span><span class="p">(</span><span class="n">Application</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">parser</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&quot;No application module specified.&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;default_proc_name&quot;</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app_uri</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">util</span><span class="o">.</span><span class="n">import_app</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app_uri</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">run</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;\</span>
+<span class="sd">    The ``gunicorn`` command line runner for launcing Gunicorn with</span>
+<span class="sd">    generic WSGI applications.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">gunicorn.app.wsgiapp</span> <span class="kn">import</span> <span class="n">WSGIApplication</span>
+    <span class="n">WSGIApplication</span><span class="p">(</span><span class="s">&quot;%prog [OPTIONS] APP_MODULE&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</td></tr></table></div>
+<p>gunicorn.app.wsgiapp:run最终是调用其中的一个函数run()，焦点集中在上述代码的最后两行，创建WSGIApplication后，立刻执行run()。</p>
+</div>
+<div class="section" id="djangoapp-py">
+<h3>djangoapp.py<a class="headerlink" href="#djangoapp-py" title="永久链接至标题">¶</a></h3>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">ENVIRONMENT_VARIABLE</span> <span class="o">=</span> <span class="s">&#39;DJANGO_SETTINGS_MODULE&#39;</span>
+
+<span class="k">class</span> <span class="nc">DjangoApplication</span><span class="p">(</span><span class="n">Application</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_settings_path</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">project_path</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_settings_path</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">no_settings</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">get_settings_modname</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">ENVIRONMENT_VARIABLE</span>
+
+        <span class="c"># get settings module</span>
+        <span class="n">settings_modname</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_settings_path</span><span class="p">:</span>
+            <span class="n">project_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+
+        <span class="c"># ......</span>
+
+    <span class="k">def</span> <span class="nf">setup_environ</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">settings_modname</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.core.management</span> <span class="kn">import</span> <span class="n">setup_environ</span>
+
+        <span class="c"># setup environ</span>
+        <span class="c"># ......</span>
+
+    <span class="k">def</span> <span class="nf">no_settings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">import_error</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">import_error</span><span class="p">:</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="s">&quot;Error: Can&#39;t find &#39;</span><span class="si">%s</span><span class="s">&#39; in your PYTHONPATH.</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">path</span>
+
+        <span class="c"># .......</span>
+
+    <span class="k">def</span> <span class="nf">activate_translation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+        <span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">translation</span>
+        <span class="n">translation</span><span class="o">.</span><span class="n">activate</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGE_CODE</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Validate models. This also ensures that all models are</span>
+<span class="sd">        imported in case of import-time side effects.&quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">django.core.management.base</span> <span class="kn">import</span> <span class="n">CommandError</span>
+        <span class="kn">from</span> <span class="nn">django.core.management.validation</span> <span class="kn">import</span> <span class="n">get_validation_errors</span>
+        <span class="c"># ......</span>
+
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.core.handlers.wsgi</span> <span class="kn">import</span> <span class="n">WSGIHandler</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_environ</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_settings_modname</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activate_translation</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">WSGIHandler</span><span class="p">()</span>
+
+<span class="c"># ......</span>
+
+<span class="k">def</span> <span class="nf">run</span><span class="p">():</span>
+  <span class="sd">&quot;&quot;&quot;\</span>
+<span class="sd">  The ``gunicorn_django`` command line runner for launching Django</span>
+<span class="sd">  applications.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="kn">from</span> <span class="nn">gunicorn.app.djangoapp</span> <span class="kn">import</span> <span class="n">DjangoApplication</span>
+  <span class="n">DjangoApplication</span><span class="p">(</span><span class="s">&quot;%prog [OPTIONS] [SETTINGS_PATH]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</td></tr></table></div>
+<p>gunicorn.app.djangoapp:run最终是调用其中的一个函数run()，焦点集中在上述代码的最后两行，创建DjangoApplication后，立刻执行run()。</p>
+<p>尽管DjangoApplication定义了不少方法，但注意与WSGIAppliction的骨架一样，实际上就定义了两个方法:</p>
+<ul class="simple">
+<li>init()</li>
+<li>load()</li>
+</ul>
+<p>最关键的方法run()，估计就是从父类Application里继承而来。</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">內容目录</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">从哪开始阅读源代码</a><ul>
+<li><a class="reference internal" href="#id2">代码树</a></li>
+<li><a class="reference internal" href="#id3">从脚本命令开始</a><ul>
+<li><a class="reference internal" href="#wsgiapp-py">wsgiapp.py</a></li>
+<li><a class="reference internal" href="#djangoapp-py">djangoapp.py</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>上一个主题</h4>
+  <p class="topless"><a href="getstart.html"
+                        title="上一章">快速入门</a></p>
+  <h4>下一个主题</h4>
+  <p class="topless"><a href="app_base.html"
+                        title="下一章">深入Application</a></p>
+  <h3>本页</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/readstart.txt"
+           rel="nofollow">显示源代码</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>快速搜索</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="搜索" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    输入相关的模块，术语，类或者函数名称进行搜索
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>导航</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="总目录"
+             >索引</a></li>
+        <li class="right" >
+          <a href="app_base.html" title="深入Application"
+             >下一页</a> |</li>
+        <li class="right" >
+          <a href="getstart.html" title="快速入门"
+             >上一页</a> |</li>
+        <li><a href="index.html">阅读gunicorn代码 v0.0.1 文档</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; 版权所有 2012, 江西 hzg.
+      使用 <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>
