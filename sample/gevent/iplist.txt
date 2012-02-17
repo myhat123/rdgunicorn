@@ -1,0 +1,4 @@
+www.google.com
+www.python.org
+www.sina.com.cn
+bkditu.appspot.com
