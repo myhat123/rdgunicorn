@@ -184,7 +184,7 @@
 正如在设计一节中说到的，主控master进程，就是一个简单的循环，用来不断侦听各种信号，然后作出不同的动作。    
 
 * 130行，start()，用来创建一个侦听用的socket，并创建一个pidfile（就是进程号文件），放在/tmp下
-* 133行，manage_workers()，根据worker数量，重启或中断worker进程
+* 133行，manage_workers()
 * 134行，正式进入循环体
 
 核心语句
@@ -225,7 +225,30 @@ self.init_signals()::
 
 把所有的信号放进一个信号列表，然后执行wakeup()。
 
-进入run()中的循环体之后，真正处理信号的就是handle()，而这个对应的是各种信号的处理handle_xxx()。真正管理用户请求和响应的，并不是在arbiter中处理，而是交给了worker。所以注意看spawn_worker()
+进入run()中的循环体之后，真正处理信号的就是handle()，而这个对应的是各种信号的处理handle_xxx()。真正管理用户请求和响应的，并不是在arbiter中处理，而是交给了worker。所以注意看manage_worker()和spawn_worker()
+
+manage_worker()代码
+
+.. code-block:: python
+  :linenos:
+
+  def manage_workers(self):
+          """\
+          Maintain the number of workers by spawning or killing
+          as required.
+          """
+          if len(self.WORKERS.keys()) < self.num_workers:
+              self.spawn_workers()
+
+          workers = self.WORKERS.items()
+          workers.sort(key=lambda w: w[1].age)
+          while len(workers) > self.num_workers:
+              (pid, _) = workers.pop(0)
+              self.kill_worker(pid, signal.SIGQUIT)
+
+根据worker数量，如果小于配置中的数量，就生成一个worker进程，否则中断worker进程              
+
+spawn_worker()代码
 
 .. code-block:: python
   :linenos:
@@ -273,4 +296,30 @@ self.init_signals()::
 
   worker.init_process()
 
-由此进入worker枢纽环节。                                  
+由此进入worker枢纽环节，将在后续介绍之。
+
+self.cfg.pre_fork(self, worker)是server hook之一。代码在哪呢？在config.py中
+
+.. code-block:: python
+
+  class Prefork(Setting):
+      name = "pre_fork"
+      section = "Server Hooks"
+      validator = validate_callable(2)
+      type = "callable"
+      def pre_fork(server, worker):
+          pass
+      default = staticmethod(pre_fork)
+      desc = """\
+          Called just before a worker is forked.
+          
+          The callable needs to accept two instance variables for the Arbiter and
+          new Worker.
+          """
+
+可以在自定义的配置文件中定义。之后的self.cfg.post_fork(self, worker)，self.cfg.worker_exit(self, worker)都是在config.py中作为server hook::
+
+  pid = os.fork()
+  worker_pid = os.getpid()
+
+这是我们熟知的进程处理方式。  
