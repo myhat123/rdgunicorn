@@ -26,6 +26,7 @@
    arbiter.rst
    route.rst
    http.rst
+   play.rst
 
 
 索引表
