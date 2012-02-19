@@ -2,3 +2,5 @@ www.google.com
 www.python.org
 www.sina.com.cn
 bkditu.appspot.com
+www.iteye.com
+www.baidu.com
