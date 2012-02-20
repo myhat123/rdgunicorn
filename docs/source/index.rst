@@ -27,6 +27,7 @@
    route.rst
    http.rst
    play.rst
+   deploy.rst
 
 
 索引表
