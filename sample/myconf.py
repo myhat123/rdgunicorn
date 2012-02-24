@@ -1,10 +1,12 @@
-#import multiprocessing
+import multiprocessing
 
 bind = "127.0.0.1:8000"
-#workers = multiprocessing.cpu_count() * 2 + 1
+workers = multiprocessing.cpu_count() * 2 + 1
 
-worker_class = "sync"
-#worker_class = "gevent_pywsgi"
+#worker_class = "sync"
+#worker_class = "gevent"
+worker_class = "gevent_pywsgi"
+#worker_class = "gevent_wsgi"
 #worker_class = "egg:gunicorn#tornado"
 #worker_class = "gunicorn.workers.ggevent.GeventWorker"
 
