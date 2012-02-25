@@ -1,4 +1,5 @@
 # -*- coding: utf8 -*-
+from django.http import HttpResponse
 
 welcome = """
 <html>
@@ -19,11 +20,5 @@ welcome = """
 </html>
 """
 
-def app(environ, start_response):
-    data = welcome
-    start_response("200 OK", [
-        ("Content-Type", "text/html"),
-        ("Content-Length", str(len(data)))
-    ])
-    return iter([data])
-
+def home(request):
+    return HttpResponse(welcome)
